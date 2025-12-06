@@ -1,5 +1,5 @@
 import os
-import uuid
+import datetime
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 import io
@@ -32,6 +32,7 @@ async def show_form(request: Request):
 
 @app.post("/fill-docx")
 async def fill_docx(payload: InputData, background_tasks: BackgroundTasks):
+    print("Request Received: ", datetime.datetime.now())
     if not os.path.exists(TEMPLATE_DOC):
         raise HTTPException(500, "Template DOCX not found.")
 
@@ -44,15 +45,22 @@ async def fill_docx(payload: InputData, background_tasks: BackgroundTasks):
         if manual_name:
             data_dict["bank_name"] = manual_name
 
+    fields_to_be_translated = [
+        "applicant_name",
+        "applicant_address",
+        "component",
+    ]
+
     for key, val in data_dict.items():
         val = "" if val is None else str(val)
         context[key] = val
         context[f"{key}_english"] = val
-        context[f"{key}_marathi"] = to_marathi(val)
-
+        if key in fields_to_be_translated:
+            context[f"{key}_marathi"] = to_marathi(val)
+    print("Request Translated: ", datetime.datetime.now())
     doc = DocxTemplate(TEMPLATE_DOC)
     doc.render(context)
-
+    print("Tags Replaced: ", datetime.datetime.now())
     output_stream = io.BytesIO()
     doc.save(output_stream)
     output_stream.seek(0)

@@ -18,6 +18,12 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 
+def format_date(dt: str) -> str:
+    dt = datetime.datetime.strptime(dt, "%Y-%m-%d")
+    str_date = dt.strftime("%d/%m/%Y")
+    return dt.strftime("%d/%m/%Y")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def show_form(request: Request):
     return templates.TemplateResponse(
@@ -48,12 +54,16 @@ async def fill_docx(payload: InputData, background_tasks: BackgroundTasks):
     fields_to_be_translated = [
         "applicant_name",
         "applicant_address",
-        "component",
+        "district",
+        "project_address"
     ]
-
+    context["Aadhar_no"] = data_dict["aadhar_no"]
     for key, val in data_dict.items():
         val = "" if val is None else str(val)
-        context[key] = val
+        if key == "date":
+            context[key] = format_date(val)
+        else:
+            context[key] = val
         context[f"{key}_english"] = val
         if key in fields_to_be_translated:
             context[f"{key}_marathi"] = to_marathi(val)

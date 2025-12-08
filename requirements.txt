@@ -3,3 +3,5 @@ uvicorn
 docxtpl
 python-docx
 translate
+PyPDF2
+python-multipart

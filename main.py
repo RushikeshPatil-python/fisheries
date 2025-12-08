@@ -1,6 +1,7 @@
 import os
 import datetime
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+import uuid
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.responses import StreamingResponse
 import io
 from fastapi.responses import HTMLResponse, FileResponse
@@ -9,6 +10,7 @@ from docxtpl import DocxTemplate
 from model import InputData
 from utils.dropdown_service import DISTRICTS, BANKS
 from utils.translate_text import to_marathi
+from PyPDF2 import PdfMerger
 
 TEMPLATE_DOC = "templates/DAJGUA_Form.docx"
 OUTPUT_DIR = "output"
@@ -20,8 +22,63 @@ templates = Jinja2Templates(directory="templates")
 
 def format_date(dt: str) -> str:
     dt = datetime.datetime.strptime(dt, "%Y-%m-%d")
-    str_date = dt.strftime("%d/%m/%Y")
     return dt.strftime("%d/%m/%Y")
+
+
+UPLOAD_DIR = "uploads"
+MERGED_DIR = "merged"
+
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(MERGED_DIR, exist_ok=True)
+
+@app.get("/pdf-merger", response_class=HTMLResponse)
+def upload_form(request: Request):
+    """UI for uploading PDFs."""
+    return templates.TemplateResponse(
+        "pdf_merger.html",
+        {
+            "request": request
+        }
+    )
+
+
+@app.post("/merge-pdfs")
+async def merge_pdfs(files: list[UploadFile] = File(...)):
+    if not files:
+        raise HTTPException(status_code=400, detail="No PDF files uploaded")
+
+    merger = PdfMerger()
+
+    try:
+        # Merge PDFs in memory
+        for pdf in files:
+            if pdf.content_type != "application/pdf":
+                raise HTTPException(status_code=400, detail=f"{pdf.filename} is not a valid PDF")
+
+            pdf_bytes = await pdf.read()
+            merger.append(io.BytesIO(pdf_bytes))
+
+        # Output PDF stored in memory
+        output_buffer = io.BytesIO()
+        merger.write(output_buffer)
+        merger.close()
+
+        output_buffer.seek(0)
+
+        # Dynamic filename
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"merged_{timestamp}.pdf"
+
+        return StreamingResponse(
+            output_buffer,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            },
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF merge failed: {str(e)}")
 
 
 @app.get("/", response_class=HTMLResponse)

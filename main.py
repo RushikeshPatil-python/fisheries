@@ -52,23 +52,24 @@ async def merge_pdfs(files: list[UploadFile] = File(...)):
     try:
         # Merge PDFs in memory
         for pdf in files:
+            print("received_file:", pdf.filename, "at: ", datetime.datetime.now())
             if pdf.content_type != "application/pdf":
                 raise HTTPException(status_code=400, detail=f"{pdf.filename} is not a valid PDF")
 
             pdf_bytes = await pdf.read()
             merger.append(io.BytesIO(pdf_bytes))
+            print("merged:", pdf.filename, "at: ", datetime.datetime.now())
 
         # Output PDF stored in memory
         output_buffer = io.BytesIO()
         merger.write(output_buffer)
         merger.close()
-
+        print("merging complete", "at: ", datetime.datetime.now())
         output_buffer.seek(0)
 
         # Dynamic filename
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"merged_{timestamp}.pdf"
-
+        filename = f"{files[0].filename.replace('.pdf', '').replace(' ', '_')}_merged.pdf"
+        print("prepared for download at: ", datetime.datetime.now())
         return StreamingResponse(
             output_buffer,
             media_type="application/pdf",
@@ -118,7 +119,7 @@ async def fill_docx(payload: InputData, background_tasks: BackgroundTasks):
     for key, val in data_dict.items():
         val = "" if val is None else str(val)
         if key == "date":
-            context[key] = format_date(val)
+            context[key] = "18/12/2025"
         else:
             context[key] = val
         context[f"{key}_english"] = val

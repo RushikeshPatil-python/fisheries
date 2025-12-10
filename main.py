@@ -123,7 +123,8 @@ async def fill_docx(payload: InputData, background_tasks: BackgroundTasks):
             context[key] = val
         context[f"{key}_english"] = val
         if key in fields_to_be_translated:
-            context[f"{key}_marathi"] = to_marathi(val)
+            if "_marathi" not in key:
+                context[f"{key}_marathi"] = to_marathi(val)
     print("Request Translated: ", datetime.datetime.now())
     doc = DocxTemplate(TEMPLATE_DOC)
     doc.render(context)
@@ -142,6 +143,12 @@ async def fill_docx(payload: InputData, background_tasks: BackgroundTasks):
             "Content-Disposition": f'attachment; filename="{filename}"'
         }
     )
+
+@app.post("/translate")
+async def translate_text(payload: dict):
+    text = payload.get("text", "")
+    marathi = to_marathi(text)
+    return {"marathi": marathi}
 
 
 if __name__ == '__main__':

@@ -36,6 +36,37 @@
     </style>
 
     <script>
+        let translateTimers = {};
+
+        async function autoTranslate(srcField, targetField) {
+            const text = document.getElementById(srcField).value.trim();
+
+            if (!text) {
+                document.getElementById(targetField).value = "";
+                return;
+            }
+
+            if (translateTimers[srcField]) {
+                clearTimeout(translateTimers[srcField]);
+            }
+
+            translateTimers[srcField] = setTimeout(async () => {
+                try {
+                    const response = await fetch("/translate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ text })
+                    });
+
+                    const result = await response.json();
+                    document.getElementById(targetField).value = result.marathi || "";
+
+                } catch (error) {
+                    console.error("Translation failed:", error);
+                }
+            }, 400);
+        }
+
         function onBankChange() {
             const select = document.getElementById("bank_name");
             const box = document.getElementById("bank_other_container");
@@ -57,7 +88,6 @@
                 data[key] = value;
             });
 
-            // If bank = Other, use custom input
             if (data.bank_name === "Other" && data.bank_name_other) {
                 data.bank_name = data.bank_name_other;
             }
@@ -71,25 +101,21 @@
                 });
 
                 if (!response.ok) {
-                    alert("Error submitting form");
+                    alert("Failed to generate document");
                     button.disabled = false;
                     button.innerHTML = "Generate Document";
                     return;
                 }
 
-                // Extract filename from Content-Disposition header
-                // Extract filename from Content-Disposition
-                let filename = "download.docx";
+                let filename = "filled_form.docx";
                 const cd = response.headers.get("Content-Disposition");
-
                 if (cd) {
                     const match = cd.match(/filename="([^"]+)"/);
                     if (match) filename = match[1];
                 }
 
-                // Download
                 const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
+                const url = URL.createObjectURL(blob);
 
                 const a = document.createElement("a");
                 a.href = url;
@@ -98,18 +124,16 @@
 
                 setTimeout(() => URL.revokeObjectURL(url), 2000);
 
-                // 🔥 RESET THE FORM AFTER SUCCESS
                 form.reset();
 
-                // Reset Tom Select UI also
                 if (window.districtSelect) window.districtSelect.clear();
                 if (window.bankSelect) window.bankSelect.clear();
 
-                // Hide Other bank field
                 document.getElementById("bank_other_container").style.display = "none";
 
             } catch (error) {
-                alert("Submission failed!");
+                console.error("Submission error:", error);
+                alert("Something went wrong!");
             }
 
             button.disabled = false;
@@ -125,33 +149,57 @@
 
     <form id="dajguaForm" onsubmit="submitForm(event)">
 
+        <!-- Applicant Name + Marathi -->
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="form-label">Applicant Name</label>
-                <input type="text" name="applicant_name" class="form-control" required>
+                <input id="applicant_name" type="text" name="applicant_name" class="form-control"
+                       onkeyup="autoTranslate('applicant_name','applicant_name_marathi')" required>
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">Age</label>
-                <input type="number" name="age" class="form-control">
+                <label class="form-label">Applicant Name (Marathi)</label>
+                <input id="applicant_name_marathi" type="text" name="applicant_name_marathi" class="form-control">
             </div>
         </div>
 
+        <!-- Age (RESTORED) -->
         <div class="mb-3">
-            <label class="form-label">Applicant Address</label>
-            <input type="text" name="applicant_address" class="form-control" required>
+            <label class="form-label">Age</label>
+            <input type="number" name="age" class="form-control">
         </div>
 
+        <!-- Applicant Address + Marathi -->
+        <div class="mb-3">
+            <label class="form-label">Applicant Address</label>
+            <input id="applicant_address" type="text" name="applicant_address" class="form-control"
+                   onkeyup="autoTranslate('applicant_address','applicant_address_marathi')" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Applicant Address (Marathi)</label>
+            <input id="applicant_address_marathi" type="text" name="applicant_address_marathi" class="form-control">
+        </div>
+
+        <!-- Mobile -->
         <div class="mb-3">
             <label class="form-label">Mobile No</label>
             <input type="text" name="mobile_no" maxlength="10" pattern="\d{10}" class="form-control" required>
         </div>
 
+        <!-- Project Address + Marathi -->
         <div class="mb-3">
             <label class="form-label">Project Address</label>
-            <input type="text" name="project_address" class="form-control">
+            <input id="project_address" type="text" name="project_address" class="form-control"
+                   onkeyup="autoTranslate('project_address','project_address_marathi')">
         </div>
 
+        <div class="mb-3">
+            <label class="form-label">Project Address (Marathi)</label>
+            <input id="project_address_marathi" type="text" name="project_address_marathi" class="form-control">
+        </div>
+
+        <!-- District -->
         <div class="mb-3">
             <label class="form-label">District</label>
             <select id="district" name="district" class="form-select">
@@ -162,21 +210,25 @@
             </select>
         </div>
 
+        <!-- Email -->
         <div class="mb-3">
             <label class="form-label">Email</label>
             <input type="email" name="email" class="form-control">
         </div>
 
+        <!-- Aadhar -->
         <div class="mb-3">
             <label class="form-label">Aadhar No</label>
             <input type="text" name="aadhar_no" maxlength="12" class="form-control">
         </div>
 
+        <!-- PAN -->
         <div class="mb-3">
             <label class="form-label">PAN</label>
             <input type="text" name="pancard" maxlength="10" class="form-control">
         </div>
 
+        <!-- Bank Name -->
         <div class="mb-3">
             <label class="form-label">Bank Name</label>
             <select id="bank_name" name="bank_name" class="form-select" onchange="onBankChange()">
@@ -193,6 +245,7 @@
             <input type="text" name="bank_name_other" class="form-control">
         </div>
 
+        <!-- Account & IFSC -->
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="form-label">Account No</label>
@@ -205,11 +258,13 @@
             </div>
         </div>
 
+        <!-- Profession -->
         <div class="mb-3">
             <label class="form-label">Profession</label>
             <input type="text" name="profession" class="form-control">
         </div>
 
+        <!-- Date -->
         <div class="mb-3">
             <label class="form-label">Date</label>
             <input type="date" name="date" class="form-control">
@@ -218,15 +273,16 @@
         <button id="submitBtn" type="submit" class="btn btn-primary w-100">
             Generate Document
         </button>
+
     </form>
 </div>
 
-<!-- Tom Select JS -->
+<!-- Tom Select -->
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
 <script>
-    window.districtSelect = new TomSelect("#district", { create: false, sortField: {field:"text"} });
-    window.bankSelect = new TomSelect("#bank_name", { create: false, sortField: {field:"text"} });
+    window.districtSelect = new TomSelect("#district");
+    window.bankSelect = new TomSelect("#bank_name");
 </script>
 
 </body>

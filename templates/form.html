@@ -20,7 +20,7 @@
             padding: 30px 40px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            max-width: 800px;
+            max-width: 850px;
             margin: auto;
         }
         .form-title {
@@ -29,18 +29,21 @@
             font-weight: bold;
             color: #34495e;
         }
-        .spinner-border {
-            width: 1.2rem;
-            height: 1.2rem;
+        .small-btn {
+            margin-top: 5px;
+            padding: 3px 8px;
+            font-size: 12px;
         }
     </style>
 
     <script>
         let translateTimers = {};
 
+        // -----------------------------
+        // REAL-TIME AUTO TRANSLATION
+        // -----------------------------
         async function autoTranslate(srcField, targetField) {
             const text = document.getElementById(srcField).value.trim();
-
             if (!text) {
                 document.getElementById(targetField).value = "";
                 return;
@@ -67,12 +70,58 @@
             }, 400);
         }
 
+        // -----------------------------
+        // SAVE USER-EDITED TRANSLATION
+        // -----------------------------
+        async function saveTranslation(srcField, targetField, buttonId) {
+            const original = document.getElementById(srcField).value.trim();
+            const translation = document.getElementById(targetField).value.trim();
+            const btn = document.getElementById(buttonId);
+
+            if (!original || !translation) {
+                alert("Please provide text and translation");
+                return;
+            }
+
+            btn.innerText = "Saving...";
+            btn.disabled = true;
+
+            try {
+                let res = await fetch("/set-translation", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: original, translation })
+                });
+
+                if (res.ok) {
+                    btn.innerText = "Saved ✓";
+                    btn.classList.remove("btn-outline-secondary");
+                    btn.classList.add("btn-success");
+
+                    setTimeout(() => {
+                        btn.innerText = "Save Translation";
+                        btn.classList.remove("btn-success");
+                        btn.classList.add("btn-outline-secondary");
+                        btn.disabled = false;
+                    }, 1500);
+                } else {
+                    btn.innerText = "Error";
+                }
+            } catch (err) {
+                btn.innerText = "Failed";
+            }
+        }
+
+        // Banking
         function onBankChange() {
             const select = document.getElementById("bank_name");
             const box = document.getElementById("bank_other_container");
             box.style.display = select.value === "Other" ? "block" : "none";
         }
 
+        // -----------------------------
+        // FORM SUBMISSION
+        // -----------------------------
         async function submitForm(event) {
             event.preventDefault();
 
@@ -84,9 +133,7 @@
             const formData = new FormData(form);
             let data = {};
 
-            formData.forEach((value, key) => {
-                data[key] = value;
-            });
+            formData.forEach((value, key) => { data[key] = value; });
 
             if (data.bank_name === "Other" && data.bank_name_other) {
                 data.bank_name = data.bank_name_other;
@@ -160,16 +207,21 @@
             <div class="col-md-6 mb-3">
                 <label class="form-label">Applicant Name (Marathi)</label>
                 <input id="applicant_name_marathi" type="text" name="applicant_name_marathi" class="form-control">
+                <button id="save_name_btn" type="button"
+                        class="btn btn-outline-secondary small-btn"
+                        onclick="saveTranslation('applicant_name','applicant_name_marathi','save_name_btn')">
+                    Save Translation
+                </button>
             </div>
         </div>
 
-        <!-- Age (RESTORED) -->
+        <!-- Age -->
         <div class="mb-3">
             <label class="form-label">Age</label>
             <input type="number" name="age" class="form-control">
         </div>
 
-        <!-- Applicant Address + Marathi -->
+        <!-- Applicant Address -->
         <div class="mb-3">
             <label class="form-label">Applicant Address</label>
             <input id="applicant_address" type="text" name="applicant_address" class="form-control"
@@ -179,6 +231,11 @@
         <div class="mb-3">
             <label class="form-label">Applicant Address (Marathi)</label>
             <input id="applicant_address_marathi" type="text" name="applicant_address_marathi" class="form-control">
+            <button id="save_addr_btn" type="button"
+                    class="btn btn-outline-secondary small-btn"
+                    onclick="saveTranslation('applicant_address','applicant_address_marathi','save_addr_btn')">
+                Save Translation
+            </button>
         </div>
 
         <!-- Mobile -->
@@ -187,7 +244,7 @@
             <input type="text" name="mobile_no" maxlength="10" pattern="\d{10}" class="form-control" required>
         </div>
 
-        <!-- Project Address + Marathi -->
+        <!-- Project Address -->
         <div class="mb-3">
             <label class="form-label">Project Address</label>
             <input id="project_address" type="text" name="project_address" class="form-control"
@@ -197,6 +254,11 @@
         <div class="mb-3">
             <label class="form-label">Project Address (Marathi)</label>
             <input id="project_address_marathi" type="text" name="project_address_marathi" class="form-control">
+            <button id="save_proj_btn" type="button"
+                    class="btn btn-outline-secondary small-btn"
+                    onclick="saveTranslation('project_address','project_address_marathi','save_proj_btn')">
+                Save Translation
+            </button>
         </div>
 
         <!-- District -->

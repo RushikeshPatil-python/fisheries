@@ -32,3 +32,18 @@ def translate_to_marathi(text):
     except Exception as e:
         print(f"Translation error: {e}")
         return text
+
+
+def update_translation(text, trans):
+    endpoint = f"https://api.mymemory.translated.net/set?seg={text}&tra={trans}&langpair=en|mr-IN"
+    try:
+        response = requests.get(endpoint)
+        if response.status_code == 200:
+            data = response.json()
+            return data
+        else:
+            print(f"Translation API error: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Translation error: {e}")
+        return None

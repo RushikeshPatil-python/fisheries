@@ -13,6 +13,7 @@ DISTRICTS = [
 BANKS = [
     "State Bank of India",
     "Bank of Maharashtra",
+    "Central Bank of India",
     "HDFC Bank",
     "ICICI Bank",
     "Axis Bank",

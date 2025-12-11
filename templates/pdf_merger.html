@@ -1,160 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Merge PDFs</title>
+  <meta charset="utf-8" />
+  <title>PDF Merger — Streaming Download</title>
 
-    <!-- Bootstrap CSS -->
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-    >
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <style>
-        body {
-            background: #f2f4f7;
-            padding: 30px;
-        }
-        .container-box {
-            background: white;
-            padding: 30px 40px;
-            border-radius: 12px;
-            max-width: 700px;
-            margin: auto;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        }
-        .spinner-border {
-            width: 1.2rem;
-            height: 1.2rem;
-        }
-    </style>
+  <style>
+    body { background:#f2f4f7; padding:30px; }
+    .container-box { background:#fff; padding:30px 40px; border-radius:12px; max-width:800px; margin:auto; box-shadow:0 4px 20px rgba(0,0,0,0.08); }
+    .spinner-border { width:1.1rem; height:1.1rem; }
+    #progressBar { height: 18px; }
+    .small-muted { font-size:0.85rem; color:#6c757d; }
+  </style>
 </head>
 <body>
 
 <div class="container-box">
+  <h3 class="text-center mb-4">PDF Merger (Streaming Download)</h3>
 
-    <h3 class="text-center mb-4">PDF Merger</h3>
+  <!-- File picker -->
+  <div class="mb-3">
+    <label class="form-label">Select PDFs (in the exact order you want)</label>
+    <input type="file" id="pdfInput" accept="application/pdf" multiple class="form-control">
+    <div class="small-muted mt-1">Files shown in selection order. Remove if needed.</div>
+  </div>
 
-    <!-- File picker -->
-    <div class="mb-3">
-        <label class="form-label">Select PDFs (in the exact order you want)</label>
-        <input type="file" id="pdfInput" accept="application/pdf" multiple class="form-control">
+  <!-- Selected files list -->
+  <ul id="pdfList" class="list-group mb-3" style="max-height:220px; overflow:auto;"></ul>
+
+  <!-- Merge / Download button -->
+  <div class="d-grid gap-2">
+    <button id="mergeBtn" class="btn btn-primary" onclick="mergePDFs()">Merge & Download</button>
+  </div>
+
+  <!-- Progress UI -->
+  <div id="progressWrap" class="mt-3" style="display:none;">
+    <div class="d-flex justify-content-between mb-1">
+      <div id="progressLabel">Downloading...</div>
+      <div id="progressPct">0%</div>
     </div>
-
-    <!-- List files in the order selected -->
-    <ul id="pdfList" class="list-group mb-3"></ul>
-
-    <!-- Merge button -->
-    <button id="mergeBtn" class="btn btn-primary w-100" onclick="mergePDFs()">
-        Merge PDFs
-    </button>
-
+    <div class="progress">
+      <div id="progressBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+    </div>
+    <div class="small-muted mt-2" id="progressBytes"></div>
+  </div>
 </div>
 
 <script>
-    let orderedFiles = [];  // Stores selected files in correct order
+  // preserves selection order and original filenames
+  let orderedFiles = [];
 
-    // When user selects PDFs
-    document.getElementById("pdfInput").addEventListener("change", function (event) {
-        const selected = Array.from(event.target.files);
+  const pdfInput = document.getElementById('pdfInput');
+  const pdfList = document.getElementById('pdfList');
+  const mergeBtn = document.getElementById('mergeBtn');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar = document.getElementById('progressBar');
+  const progressPct = document.getElementById('progressPct');
+  const progressLabel = document.getElementById('progressLabel');
+  const progressBytes = document.getElementById('progressBytes');
 
-        // Append selected files in sequence
-        selected.forEach(file => orderedFiles.push(file));
+  pdfInput.addEventListener('change', (e) => {
+    const added = Array.from(e.target.files);
+    added.forEach(f => orderedFiles.push(f));
+    renderList();
+  });
 
-        // Update list UI
-        renderList();
+  function renderList() {
+    pdfList.innerHTML = '';
+    orderedFiles.forEach((file, idx) => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+      li.innerHTML = `
+        <div>
+          <strong>${idx + 1}.</strong> ${escapeHtml(file.name)}
+          <div class="small-muted">${(file.size/1024).toFixed(1)} KB</div>
+        </div>
+        <div>
+          <button class="btn btn-sm btn-danger" onclick="removeFile(${idx})">Remove</button>
+        </div>
+      `;
+      pdfList.appendChild(li);
     });
+  }
 
-    // Show selected PDFs with remove option
-    function renderList() {
-        const list = document.getElementById("pdfList");
-        list.innerHTML = "";
+  function removeFile(index) {
+    orderedFiles.splice(index,1);
+    renderList();
+  }
 
-        orderedFiles.forEach((file, index) => {
-            const li = document.createElement("li");
-            li.className = "list-group-item d-flex justify-content-between align-items-center";
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
 
-            li.innerHTML = `
-                <span>${index + 1}. ${file.name}</span>
-                <button class="btn btn-danger btn-sm" onclick="removeFile(${index})">Remove</button>
-            `;
+  async function mergePDFs() {
+    if (orderedFiles.length === 0) { alert('Select at least one PDF'); return; }
+    mergeBtn.disabled = true;
+    mergeBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Merging...`;
 
-            list.appendChild(li);
-        });
-    }
+    const formData = new FormData();
+    // append using real filenames, in the selected order
+    orderedFiles.forEach(f => formData.append('files', f, f.name));
 
-    // Remove a selected file
-    function removeFile(index) {
-        orderedFiles.splice(index, 1);
-        renderList();
-    }
+    try {
+      const response = await fetch('/merge-pdfs', {
+        method: 'POST',
+        body: formData
+      });
 
-    // Send PDFs to backend with original filenames
-    async function mergePDFs() {
-        if (orderedFiles.length === 0) {
-            alert("Please select at least one PDF.");
-            return;
+      if (!response.ok) {
+        const text = await response.text().catch(()=>null);
+        throw new Error(`Server returned ${response.status}${text ? ': '+text : ''}`);
+      }
+
+      // get filename from header (fallback to merged.pdf)
+      let filename = 'merged.pdf';
+      const cd = response.headers.get('Content-Disposition');
+      if (cd) {
+        const m = cd.match(/filename="?([^"]+)"?/);
+        if (m) filename = m[1];
+      }
+
+      // Show progress UI
+      progressWrap.style.display = 'block';
+      progressLabel.textContent = 'Downloading...';
+      progressBar.style.width = '0%';
+      progressPct.textContent = '0%';
+      progressBytes.textContent = '';
+
+      // If content-length present we can show percent
+      const contentLengthHeader = response.headers.get('Content-Length');
+      const total = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
+
+      const reader = response.body.getReader();
+      const chunks = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+
+        if (total) {
+          const pct = Math.round((received / total) * 100);
+          progressBar.style.width = pct + '%';
+          progressPct.textContent = pct + '%';
+        } else {
+          // approximate / animate if total unknown
+          progressPct.textContent = `${(received/1024).toFixed(0)} KB`;
         }
+        progressBytes.textContent = total ? `${(received/1024).toFixed(1)} KB / ${(total/1024).toFixed(1)} KB` : `${(received/1024).toFixed(1)} KB received`;
+      }
 
-        const mergeBtn = document.getElementById("mergeBtn");
-        mergeBtn.disabled = true;
-        mergeBtn.innerHTML = `<span class="spinner-border"></span> Merging...`;
+      // assemble blob and trigger download
+      const blob = new Blob(chunks, { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
 
-        const formData = new FormData();
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
 
-        // Append files with REAL names
-        orderedFiles.forEach((file) => {
-            formData.append("files", file, file.name);
-        });
+      // cleanup
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
 
-        try {
-            const response = await fetch("/merge-pdfs", {
-                method: "POST",
-                body: formData
-            });
+      // reset UI & list
+      orderedFiles = [];
+      renderList();
+      pdfInput.value = '';
+      progressLabel.textContent = 'Download complete';
+      progressPct.textContent = '100%';
 
-            if (!response.ok) {
-                alert("Merge failed.");
-                mergeBtn.disabled = false;
-                mergeBtn.innerHTML = "Merge PDFs";
-                return;
-            }
-
-            // Download merged PDF
-            let filename = "merged.pdf";
-            const cd = response.headers.get("Content-Disposition");
-            if (cd) {
-                const match = cd.match(/filename="([^"]+)"/);
-                if (match) {
-                    filename = match[1];
-                }
-            }
-
-            // Download using the correct filename
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = filename;
-            a.click();
-
-            setTimeout(() => URL.revokeObjectURL(url), 2000);
-
-
-            // Reset UI
-            orderedFiles = [];
-            renderList();
-            document.getElementById("pdfInput").value = "";
-
-        } catch (error) {
-            alert("Error merging files.");
-        }
-
-        mergeBtn.disabled = false;
-        mergeBtn.innerHTML = "Merge PDFs";
+    } catch (err) {
+      console.error('Merge/download failed', err);
+      alert('Error: ' + (err.message || err));
+      progressLabel.textContent = 'Failed';
+    } finally {
+      mergeBtn.disabled = false;
+      mergeBtn.innerHTML = 'Merge & Download';
+      // optionally hide progress after a while
+      setTimeout(()=>{ progressWrap.style.display = 'none'; }, 3000);
     }
+  }
 </script>
-
 </body>
 </html>

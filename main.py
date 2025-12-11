@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from docxtpl import DocxTemplate
 from model import InputData
 from utils.dropdown_service import DISTRICTS, BANKS
-from utils.translate_text import to_marathi
+from utils.translate_text import to_marathi, translate_to_marathi
 from PyPDF2 import PdfMerger
 
 TEMPLATE_DOC = "templates/DAJGUA_Form.docx"
@@ -125,7 +125,7 @@ async def fill_docx(payload: InputData, background_tasks: BackgroundTasks):
         context[f"{key}_english"] = val
         if key in fields_to_be_translated:
             if "_marathi" not in key:
-                context[f"{key}_marathi"] = to_marathi(val)
+                context[f"{key}_marathi"] = translate_to_marathi(val)
     print("Request Translated: ", datetime.datetime.now())
     doc = DocxTemplate(TEMPLATE_DOC)
     doc.render(context)
@@ -148,7 +148,7 @@ async def fill_docx(payload: InputData, background_tasks: BackgroundTasks):
 @app.post("/translate")
 async def translate_text(payload: dict):
     text = payload.get("text", "")
-    marathi = to_marathi(text)
+    marathi = translate_to_marathi(text)
     return {"marathi": marathi}
 
 

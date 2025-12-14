@@ -14,7 +14,7 @@ def to_marathi(text):
 
 
 def translate_to_marathi(text):
-    endpoint = f"https://api.mymemory.translated.net/get?langpair=en|mr-IN&q={text}&de=rushikeshpatil935@gmail.com"
+    endpoint = f"https://api.mymemory.translated.net/get?langpair=en|mr-IN&q={text}&de=shubhamchougale1@gmail.com"
     try:
         response = requests.get(endpoint)
         if response.status_code == 200:

@@ -1,18 +1,19 @@
 import os
 import datetime
 import uuid
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 import io
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
-from docxtpl import DocxTemplate
+from docxtpl import DocxTemplate, InlineImage
+from docx.shared import Mm
 from model import InputData
 from utils.dropdown_service import DISTRICTS, BANKS
 from utils.translate_text import to_marathi, translate_to_marathi, update_translation
 from PyPDF2 import PdfMerger
 
-TEMPLATE_DOC = "templates/DAJGUA_Form.docx"
+TEMPLATE_DOC = "templates/DAJGUA data form (1).docx"
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -95,7 +96,11 @@ async def show_form(request: Request):
 
 
 @app.post("/fill-docx")
-async def fill_docx(payload: InputData, background_tasks: BackgroundTasks):
+async def fill_docx(
+        payload: InputData = Depends(InputData.as_forn),
+        photo: UploadFile = File(None),
+        signature: UploadFile = File(None)
+):
     print("Request Received: ", datetime.datetime.now())
     if not os.path.exists(TEMPLATE_DOC):
         raise HTTPException(500, "Template DOCX not found.")
@@ -124,10 +129,21 @@ async def fill_docx(payload: InputData, background_tasks: BackgroundTasks):
             context[key] = val
         context[f"{key}_english"] = val
         if key in fields_to_be_translated:
-            if "_marathi" not in key:
+            if f"{key}_marathi" not in data_dict:
                 context[f"{key}_marathi"] = translate_to_marathi(val)
     print("Request Translated: ", datetime.datetime.now())
     doc = DocxTemplate(TEMPLATE_DOC)
+
+    async def inline_image(file: UploadFile, width_mm: float) -> InlineImage:
+        file_bytes = await file.read()
+        return InlineImage(
+            doc,
+            io.BytesIO(file_bytes),
+            width=Mm(width_mm)
+        )
+    context["applicant_photo"] = await inline_image(photo, width_mm=30) if photo else ""
+    context["sign"] = await inline_image(signature, width_mm=40) if signature else ""
+
     doc.render(context)
     print("Tags Replaced: ", datetime.datetime.now())
     output_stream = io.BytesIO()

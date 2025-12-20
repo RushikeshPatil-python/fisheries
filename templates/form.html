@@ -34,14 +34,19 @@
             padding: 3px 8px;
             font-size: 12px;
         }
+
+        .preview-img {
+            width: 110px;
+            height: auto;
+            margin-top: 8px;
+            border: 1px solid #ccc;
+            display: none;
+        }
     </style>
 
     <script>
         let translateTimers = {};
 
-        // -----------------------------
-        // REAL-TIME AUTO TRANSLATION
-        // -----------------------------
         async function autoTranslate(srcField, targetField) {
             const text = document.getElementById(srcField).value.trim();
             if (!text) {
@@ -49,9 +54,7 @@
                 return;
             }
 
-            if (translateTimers[srcField]) {
-                clearTimeout(translateTimers[srcField]);
-            }
+            if (translateTimers[srcField]) clearTimeout(translateTimers[srcField]);
 
             translateTimers[srcField] = setTimeout(async () => {
                 try {
@@ -63,16 +66,12 @@
 
                     const result = await response.json();
                     document.getElementById(targetField).value = result.marathi || "";
-
                 } catch (error) {
                     console.error("Translation failed:", error);
                 }
             }, 400);
         }
 
-        // -----------------------------
-        // SAVE USER-EDITED TRANSLATION
-        // -----------------------------
         async function saveTranslation(srcField, targetField, buttonId) {
             const original = document.getElementById(srcField).value.trim();
             const translation = document.getElementById(targetField).value.trim();
@@ -95,33 +94,34 @@
 
                 if (res.ok) {
                     btn.innerText = "Saved ✓";
-                    btn.classList.remove("btn-outline-secondary");
                     btn.classList.add("btn-success");
-
                     setTimeout(() => {
                         btn.innerText = "Save Translation";
                         btn.classList.remove("btn-success");
-                        btn.classList.add("btn-outline-secondary");
                         btn.disabled = false;
                     }, 1500);
-                } else {
-                    btn.innerText = "Error";
                 }
             } catch (err) {
                 btn.innerText = "Failed";
             }
         }
 
-        // Banking
         function onBankChange() {
             const select = document.getElementById("bank_name");
             const box = document.getElementById("bank_other_container");
             box.style.display = select.value === "Other" ? "block" : "none";
         }
 
-        // -----------------------------
-        // FORM SUBMISSION
-        // -----------------------------
+        function previewImage(inputId, imgId) {
+            const input = document.getElementById(inputId);
+            const img = document.getElementById(imgId);
+
+            if (input.files && input.files[0]) {
+                img.src = URL.createObjectURL(input.files[0]);
+                img.style.display = "block";
+            }
+        }
+
         async function submitForm(event) {
             event.preventDefault();
 
@@ -131,20 +131,11 @@
 
             const form = document.getElementById("dajguaForm");
             const formData = new FormData(form);
-            let data = {};
-
-            formData.forEach((value, key) => { data[key] = value; });
-
-            if (data.bank_name === "Other" && data.bank_name_other) {
-                data.bank_name = data.bank_name_other;
-            }
-            delete data.bank_name_other;
 
             try {
                 const response = await fetch("/fill-docx", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(data)
+                    body: formData
                 });
 
                 if (!response.ok) {
@@ -172,11 +163,12 @@
                 setTimeout(() => URL.revokeObjectURL(url), 2000);
 
                 form.reset();
+                document.getElementById("bank_other_container").style.display = "none";
+                document.getElementById("photo_preview").style.display = "none";
+                document.getElementById("signature_preview").style.display = "none";
 
                 if (window.districtSelect) window.districtSelect.clear();
                 if (window.bankSelect) window.bankSelect.clear();
-
-                document.getElementById("bank_other_container").style.display = "none";
 
             } catch (error) {
                 console.error("Submission error:", error);
@@ -187,6 +179,7 @@
             button.innerHTML = "Generate Document";
         }
     </script>
+
 </head>
 
 <body>
@@ -194,7 +187,7 @@
 <div class="form-container">
     <h3 class="form-title">DAJGUA Application Form</h3>
 
-    <form id="dajguaForm" onsubmit="submitForm(event)">
+    <form id="dajguaForm" onsubmit="submitForm(event)" enctype="multipart/form-data">
 
         <!-- Applicant Name + Marathi -->
         <div class="row">
@@ -324,6 +317,22 @@
         <div class="mb-3">
             <label class="form-label">Date</label>
             <input type="date" name="date" class="form-control">
+        </div>
+
+        <!-- PHOTO UPLOAD -->
+        <div class="mb-3">
+            <label class="form-label">Upload Photo</label>
+            <input id="photo" type="file" name="photo" accept="image/*"
+                   class="form-control" onchange="previewImage('photo','photo_preview')">
+            <img id="photo_preview" class="preview-img">
+        </div>
+
+        <!-- SIGNATURE UPLOAD -->
+        <div class="mb-3">
+            <label class="form-label">Upload Signature</label>
+            <input id="signature" type="file" name="signature" accept="image/*"
+                   class="form-control" onchange="previewImage('signature','signature_preview')">
+            <img id="signature_preview" class="preview-img">
         </div>
 
         <button id="submitBtn" type="submit" class="btn btn-primary w-100">

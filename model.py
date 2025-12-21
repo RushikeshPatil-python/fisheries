@@ -1,6 +1,12 @@
 from fastapi import Form
+from enum import Enum
 from pydantic import BaseModel, Field
 from typing import Optional
+
+
+class CompanyNameEnum(Enum):
+    AVR = "AVR"
+    YASH = "YASH"
 
 class InputData(BaseModel):
     applicant_name: str = Field(..., description="The name of the applicant.")
@@ -21,10 +27,11 @@ class InputData(BaseModel):
     ifsc_code: Optional[str] = Field(None, description="IFSC code")
     profession: Optional[str] = Field(None, description="Profession")
     date: Optional[str] = Field(None, description="Date")
+    company: Optional[str] = Field(None, description="Company name")
 
 
     @classmethod
-    def as_forn(
+    def as_form(
             cls,
             applicant_name: str = Form(...),
             applicant_name_marathi: str = Form(...),
@@ -43,7 +50,8 @@ class InputData(BaseModel):
             account_no: Optional[str] = Form(None),
             ifsc_code: Optional[str] = Form(None),
             profession: Optional[str] = Form(None),
-            date: Optional[str] = Form(None)
+            date: Optional[str] = Form(None),
+            company: Optional[str] = Form(None)
     ):
         return cls(
             applicant_name=applicant_name,
@@ -63,5 +71,6 @@ class InputData(BaseModel):
             account_no=account_no,
             ifsc_code=ifsc_code,
             profession=profession,
-            date=date
+            date=date,
+            company=company
         )

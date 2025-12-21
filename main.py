@@ -9,11 +9,12 @@ from fastapi.templating import Jinja2Templates
 from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
 from model import InputData
-from utils.dropdown_service import DISTRICTS, BANKS
+from utils.dropdown_service import DISTRICTS, BANKS, COMPANIES
 from utils.translate_text import to_marathi, translate_to_marathi, update_translation
 from PyPDF2 import PdfMerger
 
-TEMPLATE_DOC = "templates/DAJGUA data form (1).docx"
+AVR_TEMPLATE_DOC = "templates/DAJGUA data form AVR.docx"
+YASH_TEMPLATE_DOC = "templates/DAJGUA data form YASH.docx"
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -90,22 +91,26 @@ async def show_form(request: Request):
         {
             "request": request,
             "districts": DISTRICTS,
-            "banks": BANKS
+            "banks": BANKS,
+            "companies": COMPANIES
         },
     )
 
 
 @app.post("/fill-docx")
 async def fill_docx(
-        payload: InputData = Depends(InputData.as_forn),
+        payload: InputData = Depends(InputData.as_form),
         photo: UploadFile = File(None),
         signature: UploadFile = File(None)
 ):
     print("Request Received: ", datetime.datetime.now())
-    if not os.path.exists(TEMPLATE_DOC):
-        raise HTTPException(500, "Template DOCX not found.")
 
     data_dict = payload.model_dump()
+    company_name = data_dict.get("company")
+
+    template_doc = YASH_TEMPLATE_DOC if data_dict.get("company") == "YASH" else AVR_TEMPLATE_DOC
+    if not os.path.exists(template_doc):
+        raise HTTPException(500, "Template DOCX not found.")
     context = {}
 
     # If user selected Other → override with manual bank name
@@ -132,7 +137,7 @@ async def fill_docx(
             if f"{key}_marathi" not in data_dict:
                 context[f"{key}_marathi"] = translate_to_marathi(val)
     print("Request Translated: ", datetime.datetime.now())
-    doc = DocxTemplate(TEMPLATE_DOC)
+    doc = DocxTemplate(template_doc)
 
     async def inline_image(file: UploadFile, width_mm: float) -> InlineImage:
         file_bytes = await file.read()

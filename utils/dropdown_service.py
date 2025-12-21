@@ -28,3 +28,8 @@ BANKS = [
 
 # LAST OPTION: “Other”
 BANKS.append("Other")
+
+COMPANIES = [
+    "AVR",
+    "YASH"
+]

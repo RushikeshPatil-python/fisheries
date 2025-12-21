@@ -169,6 +169,7 @@
 
                 if (window.districtSelect) window.districtSelect.clear();
                 if (window.bankSelect) window.bankSelect.clear();
+                if (window.companySelect) window.companySelect.clear();
 
             } catch (error) {
                 console.error("Submission error:", error);
@@ -317,6 +318,16 @@
         <div class="mb-3">
             <label class="form-label">Date</label>
             <input type="date" name="date" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">COMPANY</label>
+            <select id="company" name="company" class="form-select">
+                <option value="">-- Select Company --</option>
+                {% for c in companies %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+            </select>
         </div>
 
         <!-- PHOTO UPLOAD -->

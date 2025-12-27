@@ -140,7 +140,7 @@ async def fill_docx(
     print("Request Translated: ", datetime.datetime.now())
     doc = DocxTemplate(template_doc)
 
-    async def inline_image(file: UploadFile | None, width_mm: float) -> InlineImage | None:
+    async def inline_image(file: UploadFile | None, width_mm: float) -> InlineImage | str:
         if file.filename:
             file_bytes = await file.read()
             return InlineImage(
@@ -149,7 +149,7 @@ async def fill_docx(
                 width=Mm(width_mm)
             )
         else:
-            return None
+            return ""
 
     context["applicant_photo"] = await inline_image(photo, width_mm=30)
     context["sign"] = await inline_image(signature, width_mm=40)

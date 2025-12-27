@@ -13,7 +13,7 @@ class InputData(BaseModel):
     applicant_name_marathi: str = Field(None, description="The name of the applicant in Marathi.")
     applicant_address: str = Field(..., description="The address of the applicant.")
     applicant_address_marathi: str = Field(None, description="The address of the applicant in Marathi.")
-    mobile_no: str = Field(..., description="The mobile number of the applicant.")
+    mobile_no: Optional[str] = Field(None, description="The mobile number of the applicant.")
     age: Optional[int] = Field(None, description="The age of the applicant.")
     component: Optional[str] = Field(None, description="Component name")
     project_address: Optional[str] = Field(None, description="Project address")
@@ -37,7 +37,7 @@ class InputData(BaseModel):
             applicant_name_marathi: str = Form(...),
             applicant_address: str = Form(...),
             applicant_address_marathi: str = Form(...),
-            mobile_no: str = Form(...),
+            mobile_no: Optional[str] = Form(None),
             age: Optional[int] = Form(None),
             component: Optional[str] = Form(None),
             project_address: Optional[str] = Form(None),

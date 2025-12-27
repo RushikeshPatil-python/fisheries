@@ -11,6 +11,7 @@ from docx.shared import Mm
 from model import InputData
 from utils.dropdown_service import DISTRICTS, BANKS, COMPANIES
 from utils.translate_text import to_marathi, translate_to_marathi, update_translation
+from utils.empty_image import create_empty_image_stream
 from PyPDF2 import PdfMerger
 
 AVR_TEMPLATE_DOC = "templates/DAJGUA data form AVR.docx"
@@ -100,8 +101,8 @@ async def show_form(request: Request):
 @app.post("/fill-docx")
 async def fill_docx(
         payload: InputData = Depends(InputData.as_form),
-        photo: UploadFile = File(None),
-        signature: UploadFile = File(None)
+        photo: UploadFile | None = None,
+        signature: UploadFile | None = None
 ):
     print("Request Received: ", datetime.datetime.now())
 
@@ -139,15 +140,19 @@ async def fill_docx(
     print("Request Translated: ", datetime.datetime.now())
     doc = DocxTemplate(template_doc)
 
-    async def inline_image(file: UploadFile, width_mm: float) -> InlineImage:
-        file_bytes = await file.read()
-        return InlineImage(
-            doc,
-            io.BytesIO(file_bytes),
-            width=Mm(width_mm)
-        )
-    context["applicant_photo"] = await inline_image(photo, width_mm=30) if photo else ""
-    context["sign"] = await inline_image(signature, width_mm=40) if signature else ""
+    async def inline_image(file: UploadFile | None, width_mm: float) -> InlineImage | None:
+        if file.filename:
+            file_bytes = await file.read()
+            return InlineImage(
+                doc,
+                io.BytesIO(file_bytes),
+                width=Mm(width_mm)
+            )
+        else:
+            return None
+
+    context["applicant_photo"] = await inline_image(photo, width_mm=30)
+    context["sign"] = await inline_image(signature, width_mm=40)
 
     doc.render(context)
     print("Tags Replaced: ", datetime.datetime.now())
